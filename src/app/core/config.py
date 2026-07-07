@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "upload"
     FONNTE_TOKEN: str = ""
     OTP_EXPIRE_MINUTES: int = 5
+    SHOW_DOCS: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

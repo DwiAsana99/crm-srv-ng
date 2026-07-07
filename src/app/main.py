@@ -29,8 +29,8 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     default_response_class=ORJSONResponse,
-    docs_url="/docs" if settings.ENV == "dev" else None,
-    redoc_url="/redoc" if settings.ENV == "dev" else None,
+    docs_url="/docs" if settings.SHOW_DOCS else None,
+    redoc_url="/redoc" if settings.SHOW_DOCS else None,
 )
 
 app.state.limiter = limiter
