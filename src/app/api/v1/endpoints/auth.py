@@ -13,7 +13,7 @@ from app.core.fonnte import send_whatsapp
 from app.core.limiter import limiter
 from app.core.security import ALGO, create_access_token, create_bsha256, verify_password
 from app.deps.db import get_db
-from app.schemas.auth import MessageOnly, OtpVerifyIn, RegistrationIn
+from app.schemas.auth import LoginIn, MessageOnly, OtpVerifyIn, RegistrationIn
 
 router = APIRouter()
 
@@ -21,14 +21,6 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-async def _read_credentials(req: Request) -> tuple[str, str]:
-    ctype = (req.headers.get("content-type") or "").lower()
-    if "application/x-www-form-urlencoded" in ctype or "multipart/form-data" in ctype:
-        form = await req.form()
-        return (str(form.get("username") or ""), str(form.get("password") or ""))
-    data = await req.json()
-    return (str(data.get("username") or ""), str(data.get("password") or ""))
 
 
 def _otp_hash(otp: str) -> str:
@@ -77,8 +69,8 @@ def _normalize_phone(no_hp: str) -> str:
 
 @router.post("/login")
 @limiter.limit("10/minute")
-async def login(request: Request, db: AsyncSession = Depends(get_db)) -> Any:
-    username, password = await _read_credentials(request)
+async def login(request: Request, payload: LoginIn, db: AsyncSession = Depends(get_db)) -> Any:
+    username, password = payload.username, payload.password
     if not username or not password:
         raise HTTPException(status_code=422, detail="username & password required")
 
@@ -306,11 +298,11 @@ async def verifikasi_otp(
                 INSERT INTO member (
                     kode_member, nama, jk, email, alamat,
                     kabupaten, kecamatan, nohp, instagram,
-                    tgllahir, created_at, isverfi
+                    tgllahir, created_at, is_verif
                 ) VALUES (
                     :kode_member, :nama, :jk, :email, :alamat,
                     :kabupaten, :kecamatan, :nohp, :instagram,
-                    :tgllahir, NOW(), 1
+                    :tgllahir, NOW(), '1'
                 )
             """), {
                 "kode_member": kode_member,

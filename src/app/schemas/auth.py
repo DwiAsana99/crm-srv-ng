@@ -6,6 +6,11 @@ class MessageOnly(BaseModel):
     message: str
 
 
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+
 class RegistrationIn(BaseModel):
     nama_lengkap: str = Field(min_length=1)
     email: EmailStr

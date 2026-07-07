@@ -1,9 +1,91 @@
 # API — Auth & Member
 
-Base URL: `http://127.0.0.1:8000/api/v1`
+| | |
+|---|---|
+| **Base URL** | `https://api-crm.sbm-app.id/api/v1` |
+| **Swagger UI** | `https://api-crm.sbm-app.id/docs` *(aktif saat `SHOW_DOCS=true`)* |
+| **ReDoc** | `https://api-crm.sbm-app.id/redoc` *(aktif saat `SHOW_DOCS=true`)* |
+| **Health check** | `https://api-crm.sbm-app.id/health` |
 
 Semua request body: `Content-Type: application/json`
 Protected endpoint wajib kirim header: `Authorization: Bearer <token>`
+
+---
+
+## Test Accounts
+
+> **PENTING:** Akun ini hanya untuk development/testing. Hapus atau nonaktifkan sebelum production.
+
+| Role | Email (username) | Password | role_id |
+|---|---|---|---|
+| Admin Pusat | `admin.test@sbm-app.id` | `Test1234!` | 1 |
+| Member | `member.test@sbm-app.id` | `Test1234!` | 4 |
+
+### Cara Dapat Bearer Token
+
+**Login sebagai Admin:**
+```bash
+curl -s -X POST https://api-crm.sbm-app.id/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin.test@sbm-app.id","password":"Test1234!"}' \
+  | python3 -m json.tool
+```
+
+**Login sebagai Member:**
+```bash
+curl -s -X POST https://api-crm.sbm-app.id/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"member.test@sbm-app.id","password":"Test1234!"}' \
+  | python3 -m json.tool
+```
+
+Ambil `token` dari field `message.token` di response, gunakan di request selanjutnya:
+
+```bash
+# Contoh pakai token
+curl -s https://api-crm.sbm-app.id/api/v1/member/ANTEST0001 \
+  -H "Authorization: Bearer <token_dari_login>"
+```
+
+### Setup SQL — Jalankan Sekali di Database
+
+```sql
+-- ============================================================
+-- TEST ACCOUNTS — hapus sebelum production
+-- Password semua: Test1234!
+-- ============================================================
+
+-- 1. Member test (role_id = 4)
+INSERT INTO member (
+    kode_member, nama, jk, email, alamat,
+    kabupaten, kecamatan, nohp, instagram,
+    tgllahir, created_at, is_verif
+) VALUES (
+    'ANTEST0001', 'Member Test', 'L', 'member.test@sbm-app.id', 'Jl. Test No. 1',
+    3273, 327301, '081200000001', '@member_test',
+    '1995-01-01', NOW(), '1'
+);
+
+INSERT INTO users (username, password, role_id, userable_id, userable_type, created_at)
+VALUES (
+    'member.test@sbm-app.id',
+    'bsha256$$2b$12$n6xtdybiCIlJFkw3F0QoGONN0/ZaY7lavDeCWV1NmCBYtY6iEk8CO',
+    4,
+    'ANTEST0001',
+    'App\\Models\\Member',
+    NOW()
+);
+
+-- 2. Admin test (role_id = 1)
+INSERT INTO users (username, password, role_id, userable_type, created_at)
+VALUES (
+    'admin.test@sbm-app.id',
+    'bsha256$$2b$12$n6xtdybiCIlJFkw3F0QoGONN0/ZaY7lavDeCWV1NmCBYtY6iEk8CO',
+    1,
+    NULL,
+    NOW()
+);
+```
 
 ---
 
@@ -116,7 +198,7 @@ POST /auth/verifikasi-otp
 | 1 | GET | `/location/kabupaten` | Isi dropdown Kabupaten |
 | 2 | GET | `/location/kecamatan/{kabupaten_id}` | Isi dropdown Kecamatan (setelah pilih kabupaten) |
 | 3 | POST | `/auth/registrasi` | Submit form → terima `otp_token` + kirim OTP ke WA |
-| 4 | POST | `/auth/verifikasi-otp` | Masukkan OTP → akun dibuat, `isverfi=1` |
+| 4 | POST | `/auth/verifikasi-otp` | Masukkan OTP → akun dibuat, `is_verif='1'` |
 
 ### Diagram Alur
 
@@ -288,7 +370,7 @@ Future<void> submitRegistrasi() async {
 
 ### Endpoint 4 — POST /auth/verifikasi-otp
 
-Submit OTP 6 digit dari WA + `otp_token` dari Step 3. Server verifikasi, lalu INSERT ke tabel `member` dan `users` dengan `isverfi=1`.
+Submit OTP 6 digit dari WA + `otp_token` dari Step 3. Server verifikasi, lalu INSERT ke tabel `member` dan `users` dengan `is_verif='1'`.
 
 **Dart**
 
@@ -551,6 +633,13 @@ POST /auth/verifikasi-otp
  Arahkan ke halaman Login
 ```
 
+### Konfigurasi Base URL di Flutter
+
+```dart
+// constants.dart atau api_service.dart
+const String baseUrl = 'https://api-crm.sbm-app.id/api/v1';
+```
+
 ### Implementasi Flutter — Registrasi
 
 ```dart
@@ -594,7 +683,7 @@ Future<void> verifikasiOtp(String otpCode) async {
 
   if (response.statusCode == 200) {
     _otpToken = null;               // buang token OTP
-    // Registrasi berhasil, isverfi=1 sudah tersimpan di DB
+    // Registrasi berhasil, is_verif='1' tersimpan di tabel member
     Navigator.pushReplacementNamed(context, '/login');
     showSuccess('Registrasi berhasil! Silakan login.');
   } else if (response.statusCode == 400) {
